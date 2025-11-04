@@ -1,4 +1,4 @@
-Shader "Customized/CubeShader"
+Shader "Custom/CubeShader"
 {
     Properties
     {

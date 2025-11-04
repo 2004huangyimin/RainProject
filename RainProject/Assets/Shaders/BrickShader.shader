@@ -1,4 +1,4 @@
-Shader "Customized/BrickShader"
+Shader "Custom/BrickShader"
 {
     Properties {
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
