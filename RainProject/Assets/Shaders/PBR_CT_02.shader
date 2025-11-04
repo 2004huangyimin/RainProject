@@ -20,10 +20,13 @@ Shader "Custom/PBR_CT_02" {
             #pragma fragment frag
             #pragma multi_compile_fwdbase
             #pragma multi_compile_fog
+            #pragma multi_compile _ SHADOWS_SCREEN
+            #pragma multi_compile _ VERTEXLIGHT_ON
             
             #include "UnityCG.cginc"
             #include "AutoLight.cginc"
             #include "Lighting.cginc"
+            #include "WetNess.cginc"
             
             struct appdata {
                 float4 vertex : POSITION;
@@ -39,8 +42,7 @@ Shader "Custom/PBR_CT_02" {
                 float3 tspace0 : TEXCOORD2;
                 float3 tspace1 : TEXCOORD3;
                 float3 tspace2 : TEXCOORD4;
-                UNITY_FOG_COORDS(5)
-                LIGHTING_COORDS(6,7)
+                SHADOW_COORDS(5) // 阴影坐标
             };
             
             sampler2D _MainTex;
@@ -92,8 +94,8 @@ Shader "Custom/PBR_CT_02" {
                 o.tspace1 = float3(worldTangent.y, worldBinormal.y, worldNormal.y);
                 o.tspace2 = float3(worldTangent.z, worldBinormal.z, worldNormal.z);
                 
-                UNITY_TRANSFER_FOG(o,o.pos);
-                TRANSFER_VERTEX_TO_FRAGMENT(o);
+                // 传递阴影坐标
+                TRANSFER_SHADOW(o);
                 
                 return o;
             }
@@ -154,8 +156,8 @@ Shader "Custom/PBR_CT_02" {
                 float3 ambientDiffuse = albedo.rgb * UNITY_LIGHTMODEL_AMBIENT.rgb;
                 
                 // 直接光照
-                float attenuation = LIGHT_ATTENUATION(i);
-                float3 directLight = _LightColor0.rgb * NdotL * attenuation;
+                float shadow = 1;SHADOW_ATTENUATION(i);
+                float3 directLight = _LightColor0.rgb * NdotL * shadow;
                 
                 // 最终颜色合成
                 float3 kS = F;
@@ -167,11 +169,10 @@ Shader "Custom/PBR_CT_02" {
                 float3 finalColor = directDiffuse + directSpecular + ambientDiffuse + ambientSpecular;
                 
                 fixed4 col = fixed4(finalColor.xyz, albedo.a);
-                UNITY_APPLY_FOG(i.fogCoord, col);
                 return col;
             }
             ENDCG
         }
     }
-    FallBack "Diffuse"
+    //FallBack "Diffuse"
 }
