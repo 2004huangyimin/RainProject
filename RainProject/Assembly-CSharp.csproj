@@ -67,12 +67,10 @@
     <Compile Include="Assets\Scripts\FreeCam.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Assets\Shaders\PBR_CT_00.shader" />
-    <None Include="Assets\Shaders\PBR_CT_02.shader" />
+    <None Include="Assets\Shaders\PBR_CT.shader" />
     <None Include="Assets\Shaders\BrickShader.shader" />
     <None Include="Assets\Shaders\WetNess.cginc" />
     <None Include="Assets\Shaders\CubeShader.shader" />
-    <None Include="Assets\Shaders\PBR_CT_01.shader" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

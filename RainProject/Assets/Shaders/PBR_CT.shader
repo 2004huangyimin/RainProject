@@ -1,4 +1,4 @@
-Shader "Custom/PBR_CT_02" {
+Shader "Custom/PBR_CT" {
     Properties {
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
         _NormalMap ("Normal Map (RGB) Gloss (A)", 2D) = "bump" {}
