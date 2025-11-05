@@ -64,10 +64,13 @@
     <Analyzer Include="E:\TGame_Engine\Unity2022\Editor\Data\Tools\Unity.SourceGenerators\Unity.Properties.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Scripts\ComonData.cs" />
     <Compile Include="Assets\Scripts\FreeCam.cs" />
+    <Compile Include="Assets\Scripts\GenerateRippleTexturePass.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\PBR_CT.shader" />
+    <None Include="Assets\Shaders\GenerateRippleTexture.shader" />
     <None Include="Assets\Shaders\BrickShader.shader" />
     <None Include="Assets\Shaders\WetNess.cginc" />
     <None Include="Assets\Shaders\CubeShader.shader" />

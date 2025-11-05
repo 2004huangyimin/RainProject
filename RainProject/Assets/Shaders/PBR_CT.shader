@@ -4,7 +4,6 @@ Shader "Custom/PBR_CT" {
         _NormalMap ("Normal Map (RGB) Gloss (A)", 2D) = "bump" {}
         _HeightMap ("Height Map", 2D) = "black" {}
         _SkyldrMap ("Environment Cubemap", Cube) = "" {}
-        _RippleMap ("Ripple Texture", 2D) = "white" {}
         _ReflectionIntensity ("Reflection Intensity", Range(0, 2)) = 1.0
         _F0 ("Fresnel F0", Range(0, 1)) = 0.04
         _WetLevel ("Base Wet Level", Range(0,1)) = 0.0
@@ -55,7 +54,6 @@ Shader "Custom/PBR_CT" {
             sampler2D _MainTex;
             sampler2D _NormalMap;
             sampler2D _HeightMap;
-            sampler2D _RippleMap;
             samplerCUBE _SkyldrMap;
             float _ReflectionIntensity;
             float _F0;
@@ -169,7 +167,7 @@ Shader "Custom/PBR_CT" {
                 float AccumulatedWater = max(AccumWater.x, AccumWater.y);                
 
                 // Ripple normal
-                float3 RippleTangentNormal = tex2D(_RippleMap, i.worldPos.xz * 0.05).rgb * 2 - 1;
+                float3 RippleTangentNormal = tex2D(_DynamicRippleTexture, i.worldPos.xz * 0.05).rgb * 2 - 1;
                 float3 RippleWorldNormal;
                 RippleWorldNormal.x = dot(i.tspace0, RippleTangentNormal);
                 RippleWorldNormal.y = dot(i.tspace1, RippleTangentNormal);
