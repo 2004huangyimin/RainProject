@@ -2,9 +2,14 @@ Shader "Custom/PBR_CT" {
     Properties {
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
         _NormalMap ("Normal Map (RGB) Gloss (A)", 2D) = "bump" {}
+        _HeightMap ("Height Map", 2D) = "black" {}
         _SkyldrMap ("Environment Cubemap", Cube) = "" {}
+        _RippleMap ("Ripple Texture", 2D) = "white" {}
         _ReflectionIntensity ("Reflection Intensity", Range(0, 2)) = 1.0
         _F0 ("Fresnel F0", Range(0, 1)) = 0.04
+        _WetLevel ("Base Wet Level", Range(0,1)) = 0.0
+        _FloodLevel ("Flood Level", Vector) = (0,0,0,0)
+        _RainIntensity ("Rain Intensity", Range(0,1)) = 0.0        
     }
     
     SubShader {
@@ -33,9 +38,11 @@ Shader "Custom/PBR_CT" {
                 float3 normal : NORMAL;
                 float4 tangent : TANGENT;
                 float2 texcoord : TEXCOORD0;
+                float4 color : COLOR;
             };
             
             struct v2f {
+                float4 color : COLOR;
                 float2 uv : TEXCOORD0;
                 float4 pos : SV_POSITION;
                 float3 worldPos : TEXCOORD1;
@@ -47,12 +54,20 @@ Shader "Custom/PBR_CT" {
             
             sampler2D _MainTex;
             sampler2D _NormalMap;
+            sampler2D _HeightMap;
+            sampler2D _RippleMap;
             samplerCUBE _SkyldrMap;
             float _ReflectionIntensity;
             float _F0;
             
             float4 _MainTex_ST;
-            
+            float4 _NormalMap_ST;
+
+            float _WetLevel;
+            float4 _FloodLevel;
+            float _RainIntensity;
+            float _AnimationLength;
+
             // GGX/Trowbridge-Reitz 法线分布函数
             float D_GGX(float NdotH, float roughness) {
                 float a = roughness * roughness;
@@ -94,17 +109,39 @@ Shader "Custom/PBR_CT" {
                 o.tspace1 = float3(worldTangent.y, worldBinormal.y, worldNormal.y);
                 o.tspace2 = float3(worldTangent.z, worldBinormal.z, worldNormal.z);
                 
+                o.color = v.color;//Water Hole height.
+
                 // 传递阴影坐标
                 TRANSFER_SHADOW(o);
                 
                 return o;
             }
             
-            fixed4 frag (v2f i) : SV_Target {
+            fixed4 frag (v2f i) : SV_Target 
+            {
+                // Timeline or static parameters
+                float FloodX = _FloodLevel.x;
+                float FloodY = _FloodLevel.y;
+                float WetLevel = _WetLevel;
+                float RainIntensity = _RainIntensity;
+
+                 if (_AnimationLength > 0)
+                {
+                    // float AnimTime = fmod(_Time, _AnimationLength);
+                    // float4 anim = SAMPLE_TEXTURE2D_LOD(_TimelineTex, sampler_TimelineTex, float2(AnimTime / _AnimationLength, 0.5), 0);
+                    // FloodX = anim.z;
+                    // FloodY = anim.w;
+                    // WetLevel = anim.y;
+                    // RainIntensity = anim.x;
+                }               
+
                 // 采样纹理
+                float Height = tex2D(_HeightMap, i.uv);
                 fixed4 albedo = tex2D(_MainTex, i.uv);
                 fixed4 normalGloss = tex2D(_NormalMap, i.uv);
-                
+                float Gloss = normalGloss.a;
+                half3 F0Specular = _F0;                
+               
                 // 从法线贴图解码法线
                 float3 tangentNormal;
                 tangentNormal.xyz = normalGloss.rgb * 2 - 1;
@@ -116,6 +153,46 @@ Shader "Custom/PBR_CT" {
                 worldNormal.z = dot(i.tspace2, tangentNormal);
                 worldNormal = normalize(worldNormal);
                 
+                /////////////////////////////
+                // Rain effets - Specific code
+                
+                // Parameter to customize heightmap for rain if needed
+                // because it could not match the one for bumpoffset.                
+                float  ScaleHeight = 1.0f;
+                float  BiasHeight = 0.0f;
+                Height = Height * ScaleHeight + BiasHeight; 
+
+                // Accumulated water
+                float2 AccumWater;
+                AccumWater.x = min(FloodX, 1.0 - Height);
+                AccumWater.y = saturate((FloodY - i.color.g) / 0.4);
+                float AccumulatedWater = max(AccumWater.x, AccumWater.y);                
+
+                // Ripple normal
+                float3 RippleTangentNormal = tex2D(_RippleMap, i.worldPos.xz * 0.05).rgb * 2 - 1;
+                float3 RippleWorldNormal;
+                RippleWorldNormal.x = dot(i.tspace0, RippleTangentNormal);
+                RippleWorldNormal.y = dot(i.tspace1, RippleTangentNormal);
+                RippleWorldNormal.z = dot(i.tspace2, RippleTangentNormal);
+                RippleWorldNormal = normalize(RippleWorldNormal);
+
+                float3 WaterNormal = lerp(float3(0,1,0), RippleWorldNormal, saturate(RainIntensity * 100));
+
+                float NewWetLevel = saturate(WetLevel + AccumulatedWater);
+                
+                // Water influence on material BRDF (no modification of the specular term for now)
+                // Type 2 : Wet region
+                DoWetProcess(albedo.rgb, Gloss, NewWetLevel);
+
+                // Apply accumulated water effect
+                // When AccumulatedWater is 1.0 we are in Type 4
+                // so full water properties, in between we are in Type 3
+                // Water is smooth
+                Gloss = lerp(Gloss, 1.0, AccumulatedWater);
+               // Water F0 specular is 0.02 (based on IOR of 1.33)
+                F0Specular = lerp(F0Specular, 0.02, AccumulatedWater);
+                worldNormal = lerp(worldNormal, WaterNormal, AccumulatedWater);                
+
                 // 基础向量
                 float3 N = worldNormal;
                 float3 V = normalize(_WorldSpaceCameraPos.xyz - i.worldPos);
@@ -130,10 +207,9 @@ Shader "Custom/PBR_CT" {
                 float VdotH = saturate(dot(V, H));
                 
                 // PBR参数
-                float gloss = normalGloss.a;
-                float roughness = 1.0 - gloss;
+                float roughness = 1.0 - Gloss;
                 roughness = max(roughness, 0.05); // 防止过小的粗糙度
-                float3 F0 = _F0;
+                float3 F0 = F0Specular;
                 
                 // 计算BRDF分量
                 float D = D_GGX(NdotH, roughness);
